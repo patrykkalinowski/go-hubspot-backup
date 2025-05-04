@@ -2,18 +2,19 @@ package main
 
 import (
 	"bufio"
-	"fmt"
-	"net/http"
-	"flag"
-	"os"
-	"io/ioutil"
+	"bytes"
 	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
-	"path/filepath"
-	"bytes"
-	"runtime"
+
 	"github.com/fatih/color"
 )
 
@@ -32,12 +33,12 @@ func main() {
 			getAccountInfo(hapikey)
 		}
 	}
-	
+
 	switch runtime.GOOS {
-		case "windows":
-			color.Green("HUBSPOT BACKUP COMPLETE")
-		default:
-			fmt.Printf("\033[32;1mHUBSPOT BACKUP COMPLETE\033[0m\n")
+	case "windows":
+		color.Green("HUBSPOT BACKUP COMPLETE")
+	default:
+		fmt.Printf("\033[32;1mHUBSPOT BACKUP COMPLETE\033[0m\n")
 	}
 
 	answerQuestion("Press ENTER to close.")
@@ -45,15 +46,15 @@ func main() {
 }
 
 type HubspotAccount struct {
-	PortalId int 		`json:"portalId"`
-	TimeZone string `json:"timeZone"`
-	Currency string `json:"currency"`
-	UtcOffsetMilliseconds int `json:"utcOffsetMilliseconds"`
-	UtcOffset string `json:"utcOffset"`
+	PortalId              int    `json:"portalId"`
+	TimeZone              string `json:"timeZone"`
+	Currency              string `json:"currency"`
+	UtcOffsetMilliseconds int    `json:"utcOffsetMilliseconds"`
+	UtcOffset             string `json:"utcOffset"`
 }
 
 type Error struct {
-	Message  string `json:"message"`
+	Message string `json:"message"`
 }
 
 func getHapikey() string {
@@ -61,7 +62,7 @@ func getHapikey() string {
 	// command line flags
 	flag_hapikey := flag.String("hapikey", "", "Hubspot API key")
 	flag.Parse()
-	
+
 	// if hapikey in arguments, use it, else use env variable
 	if *flag_hapikey != "" {
 		hapikey = *flag_hapikey
@@ -70,15 +71,14 @@ func getHapikey() string {
 	} else {
 		// ask user for hapikey
 		switch runtime.GOOS {
-			case "windows":
-				color.White("\033[33;1m Thank you for using Hubspot Data & Content Backup! For more information and help visit https://hubspot-backup.patrykkalinowski.com \033[0m \n")
-				color.Yellow("\033[33;1mThis app needs Hubspot API key to work. Learn how to get your API key here: https://knowledge.hubspot.com/Integrations/How-do-I-get-my-HubSpot-API-key \033[0m \n")
-			default:
-				fmt.Printf("\033[97;1m Thank you for using Hubspot Data & Content Backup! For more information and help visit https://hubspot-backup.patrykkalinowski.com \033[0m \n")
-				fmt.Printf("\033[33;1mThis app needs Hubspot API key to work. Learn how to get your API key here: https://knowledge.hubspot.com/Integrations/How-do-I-get-my-HubSpot-API-key \033[0m \n")
+		case "windows":
+			color.White("\033[33;1m Thank you for using Hubspot Data & Content Backup! For more information and help visit https://hubspot-backup.patrykkalinowski.com \033[0m \n")
+			color.Yellow("\033[33;1mThis app needs Hubspot API key to work. Learn how to get your API key here: https://knowledge.hubspot.com/Integrations/How-do-I-get-my-HubSpot-API-key \033[0m \n")
+		default:
+			fmt.Printf("\033[97;1m Thank you for using Hubspot Data & Content Backup! For more information and help visit https://hubspot-backup.patrykkalinowski.com \033[0m \n")
+			fmt.Printf("\033[33;1mThis app needs Hubspot API key to work. Learn how to get your API key here: https://knowledge.hubspot.com/Integrations/How-do-I-get-my-HubSpot-API-key \033[0m \n")
 		}
-		
-		
+
 		hapikey = answerQuestion("\033[33;1mPlease enter Hubspot API key: \033[0m")
 		// TODO: save new hapikey to config.yml file
 	}
@@ -89,15 +89,35 @@ func getHapikey() string {
 func getAccountInfo(hapikey string) bool {
 	var hubspotAccount HubspotAccount
 	var error Error
+	// Create the Bearer
+	bearerToken := "Bearer " + hapikey
 
-	// Windows CMD: https://stackoverflow.com/questions/55945325/golang-url-parse-always-return-invalid-control-character-url
-	resp, err := http.Get(strings.TrimSpace("https://api.hubapi.com/integrations/v1/me" + "?hapikey=" + hapikey))
+	// Create an HTTP client
+	client := &http.Client{}
+
+	// Create a request
+	req, err := http.NewRequest("GET", "https://api.hubapi.com/integrations/v1/me", nil)
+
 	if err != nil {
 		fmt.Println(err)
 	}
-	body, err := ioutil.ReadAll(resp.Body) // body as bytess
+
+	// Set the header
+	req.Header = http.Header{
+		"Content-Type":  {"application/json"},
+		"Authorization": {bearerToken},
+	}
+
+	// Send the request
+	resp, err := client.Do(req)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	body, err := io.ReadAll(resp.Body) // body as bytess
 	resp.Body.Close()
-	
+
 	if resp.StatusCode > 299 {
 		// if error
 		fmt.Printf("\033[31;1mError: %v %v \033[0m\n", resp.StatusCode, http.StatusText(resp.StatusCode))
@@ -114,13 +134,12 @@ func getAccountInfo(hapikey string) bool {
 		}
 
 		switch runtime.GOOS {
-			case "windows":
-				color.Green("Connected to Hubspot account %v", hubspotAccount.PortalId)
-			default:
-				fmt.Printf("\033[32;1mConnected to Hubspot account %v \033[0m\n", hubspotAccount.PortalId)
+		case "windows":
+			color.Green("Connected to Hubspot account %v", hubspotAccount.PortalId)
+		default:
+			fmt.Printf("\033[32;1mConnected to Hubspot account %v \033[0m\n", hubspotAccount.PortalId)
 		}
-		
-		
+
 		return true
 	}
 
@@ -131,10 +150,10 @@ func answerQuestion(question string) string {
 	reader := bufio.NewReader(os.Stdin)
 
 	switch runtime.GOOS {
-		case "windows":
-			color.Yellow(question)
-		default:
-			fmt.Printf(question)
+	case "windows":
+		color.Yellow(question)
+	default:
+		fmt.Printf(question)
 	}
 	text, _ := reader.ReadString('\n')
 	return strings.Trim(text, " \n")
@@ -142,10 +161,10 @@ func answerQuestion(question string) string {
 
 func startBackup(hapikey string) {
 	switch runtime.GOOS {
-		case "windows":
-			color.Yellow("\033[32;1mBacking up your Hubspot account...\033[0m \n")
-		default:
-			fmt.Printf("\033[32;1mBacking up your Hubspot account...\033[0m \n")
+	case "windows":
+		color.Yellow("\033[32;1mBacking up your Hubspot account...\033[0m \n")
+	default:
+		fmt.Printf("\033[32;1mBacking up your Hubspot account...\033[0m \n")
 	}
 	// https://www.sohamkamani.com/blog/2017/10/18/parsing-json-in-golang/#unstructured-data-decoding-json-to-maps
 	// https://astaxie.gitbooks.io/build-web-application-with-golang/en/07.2.html
@@ -167,10 +186,10 @@ func startBackup(hapikey string) {
 	backupHasMore(hapikey, "https://api.hubapi.com/companies/v2/companies/paged", "companies", 0)
 	backupContacts(hapikey, "https://api.hubapi.com/contacts/v1/lists/all/contacts/all", "contacts", 0)
 	// backupLimit(hapikey, "https://api.hubapi.com/forms/v2/forms", "forms", 0) // TODO: typeArray in results, without nesting
-	
+
 	ex, err := os.Executable()
 	if err != nil {
-			panic(err)
+		panic(err)
 	}
 	exPath := filepath.Dir(ex)
 
@@ -186,15 +205,35 @@ func startBackup(hapikey string) {
 func backupHasMore(hapikey string, url string, endpoint string, offset float64) {
 	var error Error
 	var results map[string]interface{}
+	// Create the Bearer
+	bearerToken := "Bearer " + hapikey
 
-	// get data from API
-	resp, err := http.Get(strings.TrimSpace(url + "?count=250&offset=" + strconv.Itoa(int(offset)) + "&hapikey=" + hapikey))
+	// Create an HTTP client
+	client := &http.Client{}
+
+	// Create a request
+	req, err := http.NewRequest("GET", strings.TrimSpace(url+"?count=250&offset="+strconv.Itoa(int(offset))), nil)
+
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// Set the header
+	req.Header = http.Header{
+		"Content-Type":  {"application/json"},
+		"Authorization": {bearerToken},
+	}
+
+	// Send the request
+	resp, err := client.Do(req)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body) // body as bytes
-	
+	body, err := io.ReadAll(resp.Body) // body as bytes
+
 	if resp.StatusCode > 299 {
 		// if error
 		fmt.Printf("\033[31;1mError: %v %v \033[0m\n", resp.StatusCode, http.StatusText(resp.StatusCode))
@@ -210,11 +249,10 @@ func backupHasMore(hapikey string, url string, endpoint string, offset float64) 
 			panic(err)
 		}
 
-		
 		// create folder
 		folderpath := "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
 		os.MkdirAll(folderpath, 0700)
-		
+
 		// get items from response
 		var typeArray []interface{}
 
@@ -227,19 +265,19 @@ func backupHasMore(hapikey string, url string, endpoint string, offset float64) 
 		if len(typeArray) == 0 {
 			// finish if went through all records
 			switch runtime.GOOS {
-				case "windows":
-					color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
-				default:
-					fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			case "windows":
+				color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			default:
+				fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
 			}
 			return
 		}
 
 		switch runtime.GOOS {
-			case "windows":
-				color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
-			default:
-				fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
+		case "windows":
+			color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
+		default:
+			fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
 		}
 
 		// for each item
@@ -258,13 +296,13 @@ func backupHasMore(hapikey string, url string, endpoint string, offset float64) 
 			}
 			// write json to file
 			file.WriteString(string(json[:]))
-			
+
 			if err != nil {
 				fmt.Println("failed writing to file: %s", err)
 			}
 			file.Close()
 		}
-		
+
 		// rerun function if there are more results
 		has_more := results["has-more"]
 		if has_more != false {
@@ -272,10 +310,10 @@ func backupHasMore(hapikey string, url string, endpoint string, offset float64) 
 			backupHasMore(hapikey, url, endpoint, new_offset.(float64))
 		} else {
 			switch runtime.GOOS {
-				case "windows":
-					color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
-				default:
-					fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			case "windows":
+				color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			default:
+				fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
 			}
 		}
 	}
@@ -285,15 +323,35 @@ func backupHasMore(hapikey string, url string, endpoint string, offset float64) 
 func backupOnce(hapikey string, url string, endpoint string, offset float64) {
 	var error Error
 	var results map[string]interface{}
+	// Create the Bearer
+	bearerToken := "Bearer " + hapikey
 
-	// get data from API
-	resp, err := http.Get(strings.TrimSpace(url + "?count=250&offset=" + strconv.Itoa(int(offset)) + "&hapikey=" + hapikey))
+	// Create an HTTP client
+	client := &http.Client{}
+
+	// Create a request
+	req, err := http.NewRequest("GET", strings.TrimSpace(url+"?count=250&offset="+strconv.Itoa(int(offset))), nil)
+
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// Set the header
+	req.Header = http.Header{
+		"Content-Type":  {"application/json"},
+		"Authorization": {bearerToken},
+	}
+
+	// Send the request
+	resp, err := client.Do(req)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body) // body as bytes
-	
+	body, err := io.ReadAll(resp.Body) // body as bytes
+
 	if resp.StatusCode > 299 {
 		// if error
 		fmt.Printf("\033[31;1mError: %v %v \033[0m\n", resp.StatusCode, http.StatusText(resp.StatusCode))
@@ -309,12 +367,12 @@ func backupOnce(hapikey string, url string, endpoint string, offset float64) {
 			panic(err)
 		}
 		switch runtime.GOOS {
-			case "windows":
-				color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, int(offset))
-			default:
-				fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, int(offset))
+		case "windows":
+			color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, int(offset))
+		default:
+			fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, int(offset))
 		}
-		
+
 		// create folder
 		folderpath := "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
 		os.MkdirAll(folderpath, 0700)
@@ -331,21 +389,20 @@ func backupOnce(hapikey string, url string, endpoint string, offset float64) {
 		if len(typeArray) == 0 {
 			// finish if went through all records
 			switch runtime.GOOS {
-				case "windows":
-					color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
-				default:
-					fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
-			}	
+			case "windows":
+				color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			default:
+				fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			}
 			return
 		}
 		switch runtime.GOOS {
-			case "windows":
-				color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
-			default:
-				fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
+		case "windows":
+			color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
+		default:
+			fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
 		}
 
-		
 		// for each item
 		for k, v := range typeArray {
 			itemnumber := k + int(offset)
@@ -362,18 +419,18 @@ func backupOnce(hapikey string, url string, endpoint string, offset float64) {
 			}
 			// write json to file
 			file.WriteString(string(json[:]))
-			
+
 			if err != nil {
 				fmt.Println("failed writing to file: %s", err)
 			}
 			file.Close()
 		}
-		
+
 		switch runtime.GOOS {
-			case "windows":
-				color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
-			default:
-				fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+		case "windows":
+			color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+		default:
+			fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
 		}
 	}
 	return
@@ -382,15 +439,35 @@ func backupOnce(hapikey string, url string, endpoint string, offset float64) {
 func backupLimit(hapikey string, url string, endpoint string, offset float64) {
 	var error Error
 	var results map[string]interface{}
+	// Create the Bearer
+	bearerToken := "Bearer " + hapikey
 
-	// get data from API
-	resp, err := http.Get(strings.TrimSpace(url + "?limit=250&offset=" + strconv.Itoa(int(offset)) + "&hapikey=" + hapikey))
+	// Create an HTTP client
+	client := &http.Client{}
+
+	// Create a request
+	req, err := http.NewRequest("GET", strings.TrimSpace(url+"?limit=250&offset="+strconv.Itoa(int(offset))), nil)
+
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// Set the header
+	req.Header = http.Header{
+		"Content-Type":  {"application/json"},
+		"Authorization": {bearerToken},
+	}
+
+	// Send the request
+	resp, err := client.Do(req)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body) // body as bytes
-	
+	body, err := io.ReadAll(resp.Body) // body as bytes
+
 	if resp.StatusCode > 299 {
 		// if error
 		fmt.Printf("\033[31;1mError: %v %v \033[0m\n", resp.StatusCode, http.StatusText(resp.StatusCode))
@@ -407,12 +484,12 @@ func backupLimit(hapikey string, url string, endpoint string, offset float64) {
 		}
 
 		switch runtime.GOOS {
-			case "windows":
-				color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, int(offset))
-			default:
-				fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, int(offset))
+		case "windows":
+			color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, int(offset))
+		default:
+			fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, int(offset))
 		}
-		
+
 		// create folder
 		folderpath := "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
 		os.MkdirAll(folderpath, 0700)
@@ -429,14 +506,14 @@ func backupLimit(hapikey string, url string, endpoint string, offset float64) {
 		if len(typeArray) == 0 {
 			// finish if went through all records
 			switch runtime.GOOS {
-				case "windows":
-					color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
-				default:
-					fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			case "windows":
+				color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			default:
+				fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
 			}
 			return
 		}
-		
+
 		// for each item
 		for k, v := range typeArray {
 			itemnumber := k + int(offset)
@@ -453,28 +530,28 @@ func backupLimit(hapikey string, url string, endpoint string, offset float64) {
 			}
 			// write json to file
 			file.WriteString(string(json[:]))
-			
+
 			if err != nil {
 				fmt.Println("failed writing to file: %s", err)
 			}
 			file.Close()
 		}
-		
+
 		if len(typeArray) == 0 {
 			// finish if went through all records
 			switch runtime.GOOS {
-				case "windows":
-					color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
-				default:
-					fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			case "windows":
+				color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			default:
+				fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
 			}
 			return
 		} else {
 			switch runtime.GOOS {
-				case "windows":
-					color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
-				default:
-					fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
+			case "windows":
+				color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
+			default:
+				fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
 			}
 			// run again to save next batch
 			backupLimit(hapikey, url, endpoint, float64(len(typeArray))+offset)
@@ -486,15 +563,35 @@ func backupLimit(hapikey string, url string, endpoint string, offset float64) {
 func backupContacts(hapikey string, url string, endpoint string, offset float64) {
 	var error Error
 	var results map[string]interface{}
+	// Create the Bearer
+	bearerToken := "Bearer " + hapikey
 
-	// get data from API
-	resp, err := http.Get(strings.TrimSpace(url + "?count=100&vidOffset=" + strconv.Itoa(int(offset)) + "&hapikey=" + hapikey))
+	// Create an HTTP client
+	client := &http.Client{}
+
+	// Create a request
+	req, err := http.NewRequest("GET", strings.TrimSpace(url+"?count=100&vidOffset="+strconv.Itoa(int(offset))), nil)
+
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// Set the header
+	req.Header = http.Header{
+		"Content-Type":  {"application/json"},
+		"Authorization": {bearerToken},
+	}
+
+	// Send the request
+	resp, err := client.Do(req)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body) // body as bytes
-	
+	body, err := io.ReadAll(resp.Body) // body as bytes
+
 	if resp.StatusCode > 299 {
 		// if error
 		fmt.Printf("\033[31;1mError: %v %v \033[0m\n", resp.StatusCode, http.StatusText(resp.StatusCode))
@@ -510,11 +607,10 @@ func backupContacts(hapikey string, url string, endpoint string, offset float64)
 			panic(err)
 		}
 
-		
 		// create folder
 		folderpath := "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
 		os.MkdirAll(folderpath, 0700)
-		
+
 		// get items from response
 		var typeArray []interface{}
 
@@ -527,21 +623,21 @@ func backupContacts(hapikey string, url string, endpoint string, offset float64)
 		if len(typeArray) == 0 {
 			// finish if went through all records
 			switch runtime.GOOS {
-				case "windows":
-					color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
-				default:
-					fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			case "windows":
+				color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			default:
+				fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
 			}
 			return
 		}
 
 		switch runtime.GOOS {
-			case "windows":
-				color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
-			default:
-				fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
+		case "windows":
+			color.Yellow("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
+		default:
+			fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, len(typeArray)+int(offset))
 		}
-		
+
 		// for each item
 		for k, v := range typeArray {
 			itemnumber := k + int(offset)
@@ -558,13 +654,13 @@ func backupContacts(hapikey string, url string, endpoint string, offset float64)
 			}
 			// write json to file
 			file.WriteString(string(json[:]))
-			
+
 			if err != nil {
 				fmt.Println("failed writing to file: %s", err)
 			}
 			file.Close()
 		}
-		
+
 		// rerun function if there are more results
 		has_more := results["has-more"]
 		if has_more != false {
@@ -572,10 +668,10 @@ func backupContacts(hapikey string, url string, endpoint string, offset float64)
 			backupContacts(hapikey, url, endpoint, new_offset.(float64))
 		} else {
 			switch runtime.GOOS {
-				case "windows":
-					color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
-				default:
-					fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			case "windows":
+				color.Green("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
+			default:
+				fmt.Printf("\n\033[32;1mBacked up all %v \033[0m\n", endpoint)
 			}
 		}
 	}
