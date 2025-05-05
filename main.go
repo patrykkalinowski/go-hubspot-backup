@@ -90,7 +90,7 @@ func getAccountInfo(hapikey string) bool {
 	var hubspotAccount HubspotAccount
 	var error Error
 	// Create the Bearer
-	bearerToken := "Bearer " + hapikey
+	bearerToken := "Bearer " + strings.TrimSpace(hapikey)
 
 	// Create an HTTP client
 	client := &http.Client{}
@@ -206,7 +206,7 @@ func backupHasMore(hapikey string, url string, endpoint string, offset float64) 
 	var error Error
 	var results map[string]interface{}
 	// Create the Bearer
-	bearerToken := "Bearer " + hapikey
+	bearerToken := "Bearer " + strings.TrimSpace(hapikey)
 
 	// Create an HTTP client
 	client := &http.Client{}
@@ -324,7 +324,7 @@ func backupOnce(hapikey string, url string, endpoint string, offset float64) {
 	var error Error
 	var results map[string]interface{}
 	// Create the Bearer
-	bearerToken := "Bearer " + hapikey
+	bearerToken := "Bearer " + strings.TrimSpace(hapikey)
 
 	// Create an HTTP client
 	client := &http.Client{}
@@ -440,7 +440,7 @@ func backupLimit(hapikey string, url string, endpoint string, offset float64) {
 	var error Error
 	var results map[string]interface{}
 	// Create the Bearer
-	bearerToken := "Bearer " + hapikey
+	bearerToken := "Bearer " + strings.TrimSpace(hapikey)
 
 	// Create an HTTP client
 	client := &http.Client{}
@@ -564,7 +564,7 @@ func backupContacts(hapikey string, url string, endpoint string, offset float64)
 	var error Error
 	var results map[string]interface{}
 	// Create the Bearer
-	bearerToken := "Bearer " + hapikey
+	bearerToken := "Bearer " + strings.TrimSpace(hapikey)
 
 	// Create an HTTP client
 	client := &http.Client{}
