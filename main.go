@@ -72,11 +72,11 @@ func getHapikey() string {
 		// ask user for hapikey
 		switch runtime.GOOS {
 		case "windows":
-			color.White("\033[33;1m Thank you for using Hubspot Data & Content Backup! For more information and help visit https://hubspot-backup.patrykkalinowski.com \033[0m \n")
-			color.Yellow("\033[33;1mThis app needs Hubspot API key to work. Learn how to get your API key here: https://knowledge.hubspot.com/Integrations/How-do-I-get-my-HubSpot-API-key \033[0m \n")
+			color.White("\033[33;1mThank you for using Hubspot Data & Content Backup! For more information and help visit https://github.com/patrykkalinowski/go-hubspot-backup \033[0m \n")
+			color.Yellow("\033[33;1mThis app needs Hubspot API key to work. Learn how to get your API key here: https://developers.hubspot.com/docs/guides/apps/private-apps/overview \033[0m \n")
 		default:
-			fmt.Printf("\033[97;1m Thank you for using Hubspot Data & Content Backup! For more information and help visit https://hubspot-backup.patrykkalinowski.com \033[0m \n")
-			fmt.Printf("\033[33;1mThis app needs Hubspot API key to work. Learn how to get your API key here: https://knowledge.hubspot.com/Integrations/How-do-I-get-my-HubSpot-API-key \033[0m \n")
+			fmt.Printf("\033[97;1mThank you for using Hubspot Data & Content Backup! For more information and help visit https://github.com/patrykkalinowski/go-hubspot-backup \033[0m \n")
+			fmt.Printf("\033[33;1mThis app needs Hubspot API key to work. Learn how to get your API key here: https://developers.hubspot.com/docs/guides/apps/private-apps/overview \033[0m \n")
 		}
 
 		hapikey = answerQuestion("\033[33;1mPlease enter Hubspot API key: \033[0m")
