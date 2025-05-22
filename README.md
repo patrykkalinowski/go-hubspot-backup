@@ -15,6 +15,7 @@ Quickly backup everything from your Hubspot account to hard drive for free
 ## Backs up:
   - contacts
   - companies
+  - deals
   - contact lists
   - blogs
   - blogposts (without images)
@@ -26,9 +27,14 @@ Quickly backup everything from your Hubspot account to hard drive for free
   - HubDB tables
   - templates
   - URL mappings
-  - deals
   - marketing emails
   - workflows
+
+## What does it do
+
+Queries multiple Hubspot API endpoints and downloads raw responses as JSON files, where filename is object id. Files will be created in `hubspot-backup` folder.
+
+**This is not a full backup solution**. I would suggest treating it more like a last resort backup when everything else failed to restore data. Restoring data requires developer's help and some custom scripts to upload files back to Hubspot.
 
 ## Download
 
