@@ -42,8 +42,8 @@ Hubspot API key is required for this app to work. You need to create private Hub
 
 The app will check for token in this order:
 
-1. `HAPIKEY` environment variable
-2. `hapikey` CLI argument
+1. `hapikey` CLI argument
+2. `HAPIKEY` environment variable
 3. `stdin`, after asking the user to provide token
 
 ## Download
