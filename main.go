@@ -21,16 +21,20 @@ import (
 func main() {
 	hapikey := getHapikey()
 
-	// give user a chance to change Hubspot account
-	if getAccountInfo(hapikey) == true {
-		key := answerQuestion("Press \033[32;1mENTER\033[0m to start backup\n")
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		startBackup(hapikey)
+	} else {
+		// give user a chance to change Hubspot account
+		if getAccountInfo(hapikey) == true {
+			key := answerQuestion("Press \033[32;1mENTER\033[0m to start backup\n")
 
-		// []byte{13} = "enter" key
-		if key == "" || bytes.Equal([]byte(key), []byte{13}) {
-			startBackup(hapikey)
-		} else if strings.ToLower(key) == "change" {
-			hapikey = answerQuestion("\033[33;1mPlease enter Hubspot API key: \033[0m")
-			getAccountInfo(hapikey)
+			// []byte{13} = "enter" key
+			if key == "" || bytes.Equal([]byte(key), []byte{13}) {
+				startBackup(hapikey)
+			} else if strings.ToLower(key) == "change" {
+				hapikey = answerQuestion("\033[33;1mPlease enter Hubspot API key: \033[0m")
+				getAccountInfo(hapikey)
+			}
 		}
 	}
 
@@ -40,8 +44,9 @@ func main() {
 	default:
 		fmt.Printf("\033[32;1mHUBSPOT BACKUP COMPLETE\033[0m\n")
 	}
-
-	answerQuestion("Press ENTER to close.")
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		answerQuestion("Press ENTER to close.")
+	}
 	return
 }
 
@@ -68,6 +73,8 @@ func getHapikey() string {
 		hapikey = *flag_hapikey
 	} else if os.Getenv("HAPIKEY") != "" {
 		hapikey = os.Getenv("HAPIKEY")
+	} else if _, err := os.Stat("/.dockerenv"); err == nil && os.Getenv("HAPIKEY") == "" {
+		// TODO: Error
 	} else {
 		// ask user for hapikey
 		switch runtime.GOOS {

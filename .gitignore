@@ -1,2 +1,3 @@
 hubspot-backup
 .DS_Store
+.env
