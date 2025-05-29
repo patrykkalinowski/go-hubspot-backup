@@ -36,9 +36,19 @@ Queries multiple Hubspot API endpoints and downloads raw responses as JSON files
 
 **This is not a full backup solution**. I would suggest treating it more like a last resort backup when everything else failed to restore data. Restoring data requires developer's help and some custom scripts to upload files back to Hubspot.
 
+## Authentication
+
+Hubspot API key is required for this app to work. You need to create private Hubspot app and generate new access token:  [https://developers.hubspot.com/docs/guides/apps/private-apps/overview](https://developers.hubspot.com/docs/guides/apps/private-apps/overview).
+
+The app will check for token in this order:
+
+1. `hapikey` CLI argument
+2. `HAPIKEY` environment variable
+3. `stdin`, after asking the user to provide token
+
 ## Download
 
-Compiled binaries are available in [releases page](https://github.com/patrykkalinowski/go-hubspot-backup/releases).
+Compiled binaries are available on [releases page](https://github.com/patrykkalinowski/go-hubspot-backup/releases).
 
 ## Build from source
 
