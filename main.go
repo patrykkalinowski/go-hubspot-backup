@@ -21,16 +21,20 @@ import (
 func main() {
 	hapikey := getHapikey()
 
-	// give user a chance to change Hubspot account
-	if getAccountInfo(hapikey) == true {
-		key := answerQuestion("Press \033[32;1mENTER\033[0m to start backup\n")
+	if isDocker() == true {
+		startBackup(hapikey)
+	} else {
+		// give user a chance to change Hubspot account
+		if getAccountInfo(hapikey) == true {
+			key := answerQuestion("Press \033[32;1mENTER\033[0m to start backup\n")
 
-		// []byte{13} = "enter" key
-		if key == "" || bytes.Equal([]byte(key), []byte{13}) {
-			startBackup(hapikey)
-		} else if strings.ToLower(key) == "change" {
-			hapikey = answerQuestion("\033[33;1mPlease enter Hubspot API key: \033[0m")
-			getAccountInfo(hapikey)
+			// []byte{13} = "enter" key
+			if key == "" || bytes.Equal([]byte(key), []byte{13}) {
+				startBackup(hapikey)
+			} else if strings.ToLower(key) == "change" {
+				hapikey = answerQuestion("\033[33;1mPlease enter Hubspot API key: \033[0m")
+				getAccountInfo(hapikey)
+			}
 		}
 	}
 
@@ -40,8 +44,9 @@ func main() {
 	default:
 		fmt.Printf("\033[32;1mHUBSPOT BACKUP COMPLETE\033[0m\n")
 	}
-
-	answerQuestion("Press ENTER to close.")
+	if isDocker() == false {
+		answerQuestion("Press ENTER to close.")
+	}
 	return
 }
 
@@ -68,6 +73,9 @@ func getHapikey() string {
 		hapikey = *flag_hapikey
 	} else if os.Getenv("HAPIKEY") != "" {
 		hapikey = os.Getenv("HAPIKEY")
+	} else if isDocker() == true && os.Getenv("HAPIKEY") == "" {
+		fmt.Println("\033[31;1mError: No HAPIKEY present\033[0m")
+		os.Exit(1)
 	} else {
 		// ask user for hapikey
 		switch runtime.GOOS {
@@ -193,12 +201,15 @@ func startBackup(hapikey string) {
 	}
 	exPath := filepath.Dir(ex)
 
-	switch runtime.GOOS {
-	case "windows":
-		color.Green("\033[32;1m############\nBackup saved in %v/hubspot-backup/%v\033[0m \n", exPath, time.Now().Format("2006-01-02"))
-	default:
-		fmt.Printf("\033[32;1m############\nBackup saved in %v/hubspot-backup/%v\033[0m \n", exPath, time.Now().Format("2006-01-02"))
+	if isDocker() == false {
+		switch runtime.GOOS {
+		case "windows":
+			color.Green("\033[32;1m############\nBackup saved in %v/hubspot-backup/%v\033[0m \n", exPath, time.Now().Format("2006-01-02"))
+		default:
+			fmt.Printf("\033[32;1m############\nBackup saved in %v/hubspot-backup/%v\033[0m \n", exPath, time.Now().Format("2006-01-02"))
+		}
 	}
+
 	return
 }
 
@@ -249,8 +260,15 @@ func backupHasMore(hapikey string, url string, endpoint string, offset float64) 
 			panic(err)
 		}
 
-		// create folder
-		folderpath := "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		var folderpath string
+
+		if isDocker() == true {
+			// create folder
+			folderpath = "/hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		} else {
+			// create folder
+			folderpath = "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		}
 		os.MkdirAll(folderpath, 0700)
 
 		// get items from response
@@ -373,8 +391,15 @@ func backupOnce(hapikey string, url string, endpoint string, offset float64) {
 			fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, int(offset))
 		}
 
-		// create folder
-		folderpath := "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		var folderpath string
+
+		if isDocker() == true {
+			// create folder
+			folderpath = "/hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		} else {
+			// create folder
+			folderpath = "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		}
 		os.MkdirAll(folderpath, 0700)
 
 		// get items from response
@@ -490,8 +515,15 @@ func backupLimit(hapikey string, url string, endpoint string, offset float64) {
 			fmt.Printf("\r\033[33;1mBacking up %v: %v\033[0m", endpoint, int(offset))
 		}
 
-		// create folder
-		folderpath := "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		var folderpath string
+
+		if isDocker() == true {
+			// create folder
+			folderpath = "/hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		} else {
+			// create folder
+			folderpath = "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		}
 		os.MkdirAll(folderpath, 0700)
 
 		// get items from response
@@ -607,8 +639,15 @@ func backupContacts(hapikey string, url string, endpoint string, offset float64)
 			panic(err)
 		}
 
-		// create folder
-		folderpath := "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		var folderpath string
+
+		if isDocker() == true {
+			// create folder
+			folderpath = "/hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		} else {
+			// create folder
+			folderpath = "hubspot-backup/" + time.Now().Format("2006-01-02") + "/" + endpoint
+		}
 		os.MkdirAll(folderpath, 0700)
 
 		// get items from response
@@ -676,4 +715,12 @@ func backupContacts(hapikey string, url string, endpoint string, offset float64)
 		}
 	}
 	return
+}
+
+func isDocker() bool {
+	if _, err := os.Stat("/.dockerenv"); err == nil { // check if file /.dockerenv is present
+		return true
+	} else {
+		return false
+	}
 }
