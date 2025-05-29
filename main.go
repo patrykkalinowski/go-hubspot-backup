@@ -44,7 +44,7 @@ func main() {
 	default:
 		fmt.Printf("\033[32;1mHUBSPOT BACKUP COMPLETE\033[0m\n")
 	}
-	if isDocker() == true {
+	if isDocker() == false {
 		answerQuestion("Press ENTER to close.")
 	}
 	return
