@@ -74,7 +74,8 @@ func getHapikey() string {
 	} else if os.Getenv("HAPIKEY") != "" {
 		hapikey = os.Getenv("HAPIKEY")
 	} else if _, err := os.Stat("/.dockerenv"); err == nil && os.Getenv("HAPIKEY") == "" {
-		// TODO: Error
+		fmt.Println("\033[31;1mError: No HAPIKEY present\033[0m")
+		os.Exit(1)
 	} else {
 		// ask user for hapikey
 		switch runtime.GOOS {
